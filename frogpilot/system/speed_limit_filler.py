@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 from cereal import log, messaging
 
+from openpilot.common.conversions import Conversions as CV
 from openpilot.frogpilot.common.frogpilot_utilities import calculate_distance_to_point, calculate_lane_width, is_url_pingable
 from openpilot.frogpilot.common.frogpilot_variables import params, params_memory
 
@@ -91,7 +92,7 @@ class MapSpeedLogger:
 
   @staticmethod
   def meters_to_deg_lon(meters, latitude):
-    return meters / (METERS_PER_DEG_LAT * math.cos(math.radians(latitude)))
+    return meters / (METERS_PER_DEG_LAT * math.cos(latitude * CV.DEG_TO_RAD))
 
   def get_speed_limit_source(self):
     sources = [
@@ -177,7 +178,7 @@ class MapSpeedLogger:
       return []
 
   def filter_segments_for_entry(self, entry):
-    bearing_rad = math.radians(entry["bearing"])
+    bearing_rad = entry["bearing"] * CV.DEG_TO_RAD
     start_lat, start_lon = entry["start_coordinates"]["latitude"], entry["start_coordinates"]["longitude"]
     end_lat, end_lon = entry["end_coordinates"]["latitude"], entry["end_coordinates"]["longitude"]
     mid_lat = (start_lat + end_lat) / 2
@@ -241,10 +242,10 @@ class MapSpeedLogger:
       return
 
     distance = calculate_distance_to_point(
-      math.radians(self.previous_coordinates["latitude"]),
-      math.radians(self.previous_coordinates["longitude"]),
-      math.radians(current_latitude),
-      math.radians(current_longitude)
+      self.previous_coordinates["latitude"] * CV.DEG_TO_RAD,
+      self.previous_coordinates["longitude"] * CV.DEG_TO_RAD,
+      current_latitude * CV.DEG_TO_RAD,
+      current_longitude * CV.DEG_TO_RAD
     )
     if distance < 1:
       return
@@ -331,7 +332,6 @@ class MapSpeedLogger:
 
     self.update_params(dataset, filtered_dataset)
     params_memory.put("UpdateSpeedLimitsStatus", "Completed!")
-    params_memory.remove("UpdateSpeedLimits")
 
   def update_cached_segments(self, latitude, longitude, vetting=False):
     if not self.is_in_cached_box(latitude, longitude):
@@ -413,6 +413,8 @@ def main():
       previously_started = False
     elif params_memory.get_bool("UpdateSpeedLimits"):
       logger.process_speed_limits()
+
+      params_memory.remove("UpdateSpeedLimits")
     else:
       time.sleep(5)
 
