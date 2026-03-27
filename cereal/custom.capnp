@@ -220,6 +220,9 @@ struct FrogPilotPlan @0xa1680744031fdb2d {
   vCruise @35 :Float32;
   weatherDaytime @36 :Bool;
   weatherId @37 :Int16;
+
+  stopSignDetected @38 :Bool;
+  stopSignDistance @39 :Float32;
 }
 
 struct FrogPilotRadarState @0xcb9fd56c7057593a {
@@ -245,4 +248,11 @@ struct FrogPilotRadarState @0xcb9fd56c7057593a {
 
     aLeadDEPRECATED @5 :Float32;
   }
+}
+
+struct FrogPilotStopSign @0xb827c8e1f439a1d3 {
+  detected @0 :Bool;
+  confidence @1 :Float32;
+  distance @2 :Float32;
+  boundingBox @3 :List(Float32);
 }

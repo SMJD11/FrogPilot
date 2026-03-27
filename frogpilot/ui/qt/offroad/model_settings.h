@@ -29,6 +29,7 @@ private:
   bool modelDownloading;
   bool noModelsDownloaded;
   bool started;
+  bool stopSignModelDownloading;
   bool tinygradUpdate;
   bool updatingTinygrad;
 
@@ -38,6 +39,7 @@ private:
 
   FrogPilotButtonsControl *deleteModelButton;
   FrogPilotButtonsControl *downloadModelButton;
+  FrogPilotButtonsControl *downloadStopSignModelButton;
   FrogPilotButtonsControl *updateTinygradButton;
 
   FrogPilotSettingsWindow *parent;

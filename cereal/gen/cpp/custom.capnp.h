@@ -8,7 +8,7 @@
 
 #ifndef CAPNP_VERSION
 #error "CAPNP_VERSION is not defined, is capnp/generated-header-support.h missing?"
-#elif CAPNP_VERSION != 1000002
+#elif CAPNP_VERSION != 1000001
 #error "Version mismatch between generated code and library headers.  You must use the same version of the Cap'n Proto compiler and library."
 #endif
 
@@ -121,6 +121,7 @@ CAPNP_DECLARE_SCHEMA(f416ec09499d9d19);
 CAPNP_DECLARE_SCHEMA(a1680744031fdb2d);
 CAPNP_DECLARE_SCHEMA(cb9fd56c7057593a);
 CAPNP_DECLARE_SCHEMA(8511c6ee1d2a98c1);
+CAPNP_DECLARE_SCHEMA(b827c8e1f439a1d3);
 
 }  // namespace schemas
 }  // namespace capnp
@@ -315,7 +316,7 @@ struct FrogPilotPlan {
   class Pipeline;
 
   struct _capnpPrivate {
-    CAPNP_DECLARE_STRUCT_HEADER(a1680744031fdb2d, 13, 2)
+    CAPNP_DECLARE_STRUCT_HEADER(a1680744031fdb2d, 14, 2)
     #if !CAPNP_LITE
     static constexpr ::capnp::_::RawBrandedSchema const* brand() { return &schema->defaultBrand; }
     #endif  // !CAPNP_LITE
@@ -347,6 +348,21 @@ struct FrogPilotRadarState::LeadData {
 
   struct _capnpPrivate {
     CAPNP_DECLARE_STRUCT_HEADER(8511c6ee1d2a98c1, 7, 0)
+    #if !CAPNP_LITE
+    static constexpr ::capnp::_::RawBrandedSchema const* brand() { return &schema->defaultBrand; }
+    #endif  // !CAPNP_LITE
+  };
+};
+
+struct FrogPilotStopSign {
+  FrogPilotStopSign() = delete;
+
+  class Reader;
+  class Builder;
+  class Pipeline;
+
+  struct _capnpPrivate {
+    CAPNP_DECLARE_STRUCT_HEADER(b827c8e1f439a1d3, 2, 1)
     #if !CAPNP_LITE
     static constexpr ::capnp::_::RawBrandedSchema const* brand() { return &schema->defaultBrand; }
     #endif  // !CAPNP_LITE
@@ -1502,6 +1518,10 @@ public:
 
   inline  ::int16_t getWeatherId() const;
 
+  inline bool getStopSignDetected() const;
+
+  inline float getStopSignDistance() const;
+
 private:
   ::capnp::_::StructReader _reader;
   template <typename, ::capnp::Kind>
@@ -1651,6 +1671,12 @@ public:
 
   inline  ::int16_t getWeatherId();
   inline void setWeatherId( ::int16_t value);
+
+  inline bool getStopSignDetected();
+  inline void setStopSignDetected(bool value);
+
+  inline float getStopSignDistance();
+  inline void setStopSignDistance(float value);
 
 private:
   ::capnp::_::StructBuilder _builder;
@@ -1909,6 +1935,103 @@ private:
 class FrogPilotRadarState::LeadData::Pipeline {
 public:
   typedef LeadData Pipelines;
+
+  inline Pipeline(decltype(nullptr)): _typeless(nullptr) {}
+  inline explicit Pipeline(::capnp::AnyPointer::Pipeline&& typeless)
+      : _typeless(kj::mv(typeless)) {}
+
+private:
+  ::capnp::AnyPointer::Pipeline _typeless;
+  friend class ::capnp::PipelineHook;
+  template <typename, ::capnp::Kind>
+  friend struct ::capnp::ToDynamic_;
+};
+#endif  // !CAPNP_LITE
+
+class FrogPilotStopSign::Reader {
+public:
+  typedef FrogPilotStopSign Reads;
+
+  Reader() = default;
+  inline explicit Reader(::capnp::_::StructReader base): _reader(base) {}
+
+  inline ::capnp::MessageSize totalSize() const {
+    return _reader.totalSize().asPublic();
+  }
+
+#if !CAPNP_LITE
+  inline ::kj::StringTree toString() const {
+    return ::capnp::_::structString(_reader, *_capnpPrivate::brand());
+  }
+#endif  // !CAPNP_LITE
+
+  inline bool getDetected() const;
+
+  inline float getConfidence() const;
+
+  inline float getDistance() const;
+
+  inline bool hasBoundingBox() const;
+  inline  ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>::Reader getBoundingBox() const;
+
+private:
+  ::capnp::_::StructReader _reader;
+  template <typename, ::capnp::Kind>
+  friend struct ::capnp::ToDynamic_;
+  template <typename, ::capnp::Kind>
+  friend struct ::capnp::_::PointerHelpers;
+  template <typename, ::capnp::Kind>
+  friend struct ::capnp::List;
+  friend class ::capnp::MessageBuilder;
+  friend class ::capnp::Orphanage;
+};
+
+class FrogPilotStopSign::Builder {
+public:
+  typedef FrogPilotStopSign Builds;
+
+  Builder() = delete;  // Deleted to discourage incorrect usage.
+                       // You can explicitly initialize to nullptr instead.
+  inline Builder(decltype(nullptr)) {}
+  inline explicit Builder(::capnp::_::StructBuilder base): _builder(base) {}
+  inline operator Reader() const { return Reader(_builder.asReader()); }
+  inline Reader asReader() const { return *this; }
+
+  inline ::capnp::MessageSize totalSize() const { return asReader().totalSize(); }
+#if !CAPNP_LITE
+  inline ::kj::StringTree toString() const { return asReader().toString(); }
+#endif  // !CAPNP_LITE
+
+  inline bool getDetected();
+  inline void setDetected(bool value);
+
+  inline float getConfidence();
+  inline void setConfidence(float value);
+
+  inline float getDistance();
+  inline void setDistance(float value);
+
+  inline bool hasBoundingBox();
+  inline  ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>::Builder getBoundingBox();
+  inline void setBoundingBox( ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>::Reader value);
+  inline void setBoundingBox(::kj::ArrayPtr<const float> value);
+  inline  ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>::Builder initBoundingBox(unsigned int size);
+  inline void adoptBoundingBox(::capnp::Orphan< ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>>&& value);
+  inline ::capnp::Orphan< ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>> disownBoundingBox();
+
+private:
+  ::capnp::_::StructBuilder _builder;
+  template <typename, ::capnp::Kind>
+  friend struct ::capnp::ToDynamic_;
+  friend class ::capnp::Orphanage;
+  template <typename, ::capnp::Kind>
+  friend struct ::capnp::_::PointerHelpers;
+};
+
+#if !CAPNP_LITE
+class FrogPilotStopSign::Pipeline {
+public:
+  typedef FrogPilotStopSign Pipelines;
 
   inline Pipeline(decltype(nullptr)): _typeless(nullptr) {}
   inline explicit Pipeline(::capnp::AnyPointer::Pipeline&& typeless)
@@ -3287,6 +3410,34 @@ inline void FrogPilotPlan::Builder::setWeatherId( ::int16_t value) {
       ::capnp::bounded<5>() * ::capnp::ELEMENTS, value);
 }
 
+inline bool FrogPilotPlan::Reader::getStopSignDetected() const {
+  return _reader.getDataField<bool>(
+      ::capnp::bounded<75>() * ::capnp::ELEMENTS);
+}
+
+inline bool FrogPilotPlan::Builder::getStopSignDetected() {
+  return _builder.getDataField<bool>(
+      ::capnp::bounded<75>() * ::capnp::ELEMENTS);
+}
+inline void FrogPilotPlan::Builder::setStopSignDetected(bool value) {
+  _builder.setDataField<bool>(
+      ::capnp::bounded<75>() * ::capnp::ELEMENTS, value);
+}
+
+inline float FrogPilotPlan::Reader::getStopSignDistance() const {
+  return _reader.getDataField<float>(
+      ::capnp::bounded<26>() * ::capnp::ELEMENTS);
+}
+
+inline float FrogPilotPlan::Builder::getStopSignDistance() {
+  return _builder.getDataField<float>(
+      ::capnp::bounded<26>() * ::capnp::ELEMENTS);
+}
+inline void FrogPilotPlan::Builder::setStopSignDistance(float value) {
+  _builder.setDataField<float>(
+      ::capnp::bounded<26>() * ::capnp::ELEMENTS, value);
+}
+
 inline bool FrogPilotRadarState::Reader::hasLeadLeft() const {
   return !_reader.getPointerField(
       ::capnp::bounded<0>() * ::capnp::POINTERS).isNull();
@@ -3587,6 +3738,86 @@ inline  ::int32_t FrogPilotRadarState::LeadData::Builder::getRadarTrackId() {
 inline void FrogPilotRadarState::LeadData::Builder::setRadarTrackId( ::int32_t value) {
   _builder.setDataField< ::int32_t>(
       ::capnp::bounded<13>() * ::capnp::ELEMENTS, value, -1);
+}
+
+inline bool FrogPilotStopSign::Reader::getDetected() const {
+  return _reader.getDataField<bool>(
+      ::capnp::bounded<0>() * ::capnp::ELEMENTS);
+}
+
+inline bool FrogPilotStopSign::Builder::getDetected() {
+  return _builder.getDataField<bool>(
+      ::capnp::bounded<0>() * ::capnp::ELEMENTS);
+}
+inline void FrogPilotStopSign::Builder::setDetected(bool value) {
+  _builder.setDataField<bool>(
+      ::capnp::bounded<0>() * ::capnp::ELEMENTS, value);
+}
+
+inline float FrogPilotStopSign::Reader::getConfidence() const {
+  return _reader.getDataField<float>(
+      ::capnp::bounded<1>() * ::capnp::ELEMENTS);
+}
+
+inline float FrogPilotStopSign::Builder::getConfidence() {
+  return _builder.getDataField<float>(
+      ::capnp::bounded<1>() * ::capnp::ELEMENTS);
+}
+inline void FrogPilotStopSign::Builder::setConfidence(float value) {
+  _builder.setDataField<float>(
+      ::capnp::bounded<1>() * ::capnp::ELEMENTS, value);
+}
+
+inline float FrogPilotStopSign::Reader::getDistance() const {
+  return _reader.getDataField<float>(
+      ::capnp::bounded<2>() * ::capnp::ELEMENTS);
+}
+
+inline float FrogPilotStopSign::Builder::getDistance() {
+  return _builder.getDataField<float>(
+      ::capnp::bounded<2>() * ::capnp::ELEMENTS);
+}
+inline void FrogPilotStopSign::Builder::setDistance(float value) {
+  _builder.setDataField<float>(
+      ::capnp::bounded<2>() * ::capnp::ELEMENTS, value);
+}
+
+inline bool FrogPilotStopSign::Reader::hasBoundingBox() const {
+  return !_reader.getPointerField(
+      ::capnp::bounded<0>() * ::capnp::POINTERS).isNull();
+}
+inline bool FrogPilotStopSign::Builder::hasBoundingBox() {
+  return !_builder.getPointerField(
+      ::capnp::bounded<0>() * ::capnp::POINTERS).isNull();
+}
+inline  ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>::Reader FrogPilotStopSign::Reader::getBoundingBox() const {
+  return ::capnp::_::PointerHelpers< ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>>::get(_reader.getPointerField(
+      ::capnp::bounded<0>() * ::capnp::POINTERS));
+}
+inline  ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>::Builder FrogPilotStopSign::Builder::getBoundingBox() {
+  return ::capnp::_::PointerHelpers< ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>>::get(_builder.getPointerField(
+      ::capnp::bounded<0>() * ::capnp::POINTERS));
+}
+inline void FrogPilotStopSign::Builder::setBoundingBox( ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>::Reader value) {
+  ::capnp::_::PointerHelpers< ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>>::set(_builder.getPointerField(
+      ::capnp::bounded<0>() * ::capnp::POINTERS), value);
+}
+inline void FrogPilotStopSign::Builder::setBoundingBox(::kj::ArrayPtr<const float> value) {
+  ::capnp::_::PointerHelpers< ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>>::set(_builder.getPointerField(
+      ::capnp::bounded<0>() * ::capnp::POINTERS), value);
+}
+inline  ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>::Builder FrogPilotStopSign::Builder::initBoundingBox(unsigned int size) {
+  return ::capnp::_::PointerHelpers< ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>>::init(_builder.getPointerField(
+      ::capnp::bounded<0>() * ::capnp::POINTERS), size);
+}
+inline void FrogPilotStopSign::Builder::adoptBoundingBox(
+    ::capnp::Orphan< ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>>&& value) {
+  ::capnp::_::PointerHelpers< ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>>::adopt(_builder.getPointerField(
+      ::capnp::bounded<0>() * ::capnp::POINTERS), kj::mv(value));
+}
+inline ::capnp::Orphan< ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>> FrogPilotStopSign::Builder::disownBoundingBox() {
+  return ::capnp::_::PointerHelpers< ::capnp::List<float,  ::capnp::Kind::PRIMITIVE>>::disown(_builder.getPointerField(
+      ::capnp::bounded<0>() * ::capnp::POINTERS));
 }
 
 }  // namespace

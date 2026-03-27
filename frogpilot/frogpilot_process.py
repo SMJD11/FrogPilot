@@ -8,6 +8,7 @@ from openpilot.common.realtime import DT_MDL, Priority, Ratekeeper, config_realt
 from openpilot.common.time import system_time_valid
 
 from openpilot.frogpilot.assets.model_manager import MODEL_DOWNLOAD_ALL_PARAM, MODEL_DOWNLOAD_PARAM, ModelManager
+from openpilot.frogpilot.assets.stop_sign_model_manager import StopSignModelManager
 from openpilot.frogpilot.assets.theme_manager import THEME_COMPONENT_PARAMS, ThemeManager
 from openpilot.frogpilot.common.frogpilot_functions import backup_toggles
 from openpilot.frogpilot.common.frogpilot_utilities import capture_report, flash_panda, is_url_pingable, lock_doors, run_thread_with_lock, update_maps, update_openpilot
@@ -40,6 +41,9 @@ def assets_checks(model_manager, theme_manager, frogpilot_toggles):
     asset_to_download = params_memory.get(asset_param, encoding="utf-8")
     if asset_to_download:
       run_thread_with_lock("download_theme", theme_manager.download_theme, (asset_type, asset_to_download, asset_param, frogpilot_toggles))
+
+  if params_memory.get_bool("DownloadStopSignModel"):
+    run_thread_with_lock("download_stop_sign_model", StopSignModelManager.download)
 
 def update_checks(model_manager, now, theme_manager, frogpilot_toggles, boot_run=False):
   while not (is_url_pingable("https://github.com") or is_url_pingable("https://gitlab.com")):
@@ -76,8 +80,9 @@ def frogpilot_thread():
   sm = messaging.SubMaster(["carControl", "carState", "controlsState", "deviceState", "driverMonitoringState",
                             "liveLocationKalman", "liveParameters", "managerState", "modelV2", "onroadEvents",
                             "pandaStates", "radarState", "frogpilotCarState", "frogpilotControlsState",
-                            "frogpilotModelV2", "frogpilotNavigation", "frogpilotOnroadEvents"],
-                            poll="modelV2", ignore_avg_freq=["frogpilotRadarState"])
+                            "frogpilotModelV2", "frogpilotNavigation", "frogpilotOnroadEvents",
+                            "frogpilotStopSign"],
+                            poll="modelV2", ignore_avg_freq=["frogpilotRadarState", "frogpilotStopSign"])
 
   run_update_checks = False
   started_previously = False

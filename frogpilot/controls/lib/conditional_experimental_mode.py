@@ -95,6 +95,10 @@ class ConditionalExperimentalMode:
 
       self.stop_light_filter.update(self.frogpilot_planner.model_stopped or model_stopping)
       self.stop_light_detected = self.stop_light_filter.x >= THRESHOLD and not self.frogpilot_planner.tracking_lead
+
+      # Vision-based stop sign detection overrides for early activation
+      if self.frogpilot_planner.stop_sign_detected and self.frogpilot_planner.stop_sign_distance > 10.0:
+        self.stop_light_detected = True
     else:
       self.stop_light_filter.x = 0
       self.stop_light_detected = False

@@ -436,6 +436,7 @@ frogpilot_default_params: list[tuple[str, str | bytes, int, str]] = [
   ("StartupMessageBottom", "Human-tested, frog-approved 🐸", 0, "Always keep hands on wheel and eyes on road"),
   ("StartupMessageTop", "Hop in and buckle up!", 0, "Be ready to take over at any time"),
   ("StandardFollow", "1.45", 2, "1.45"),
+  ("StopSignDetector", "1", 1, "0"),
   ("StandardJerkAcceleration", "100", 3, "100"),
   ("StandardJerkDanger", "100", 3, "100"),
   ("StandardJerkDeceleration", "100", 3, "100"),
@@ -999,6 +1000,8 @@ class FrogPilotVariables:
     toggle.standby_mode = screen_management and (params.get_bool("StandbyMode") if toggle.tuning_level >= level["StandbyMode"] else default.get_bool("StandbyMode"))
 
     toggle.sng_hack = toggle.openpilot_longitudinal and toggle.car_make == "toyota" and not toggle.has_pedal and not has_sng and (params.get_bool("SNGHack") if toggle.tuning_level >= level["SNGHack"] else default.get_bool("SNGHack"))
+
+    toggle.stop_sign_detector = toggle.openpilot_longitudinal and (params.get_bool("StopSignDetector") if toggle.tuning_level >= level["StopSignDetector"] else default.get_bool("StopSignDetector"))
 
     toggle.speed_limit_controller = toggle.openpilot_longitudinal and (params.get_bool("SpeedLimitController") if toggle.tuning_level >= level["SpeedLimitController"] else default.get_bool("SpeedLimitController"))
     toggle.force_mph_dashboard = toggle.speed_limit_controller and (params.get_bool("ForceMPHDashboard") if toggle.tuning_level >= level["ForceMPHDashboard"] else default.get_bool("ForceMPHDashboard"))

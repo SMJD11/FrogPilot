@@ -43,6 +43,8 @@ class FrogPilotPlanner:
     self.lateral_acceleration = 0
     self.model_length = 0
     self.road_curvature = 0
+    self.stop_sign_detected = False
+    self.stop_sign_distance = 0.0
     self.time_to_curve = 0
     self.v_cruise = 0
 
@@ -100,8 +102,20 @@ class FrogPilotPlanner:
 
     self.model_length = sm["modelV2"].position.x[-1]
 
+    # Vision-based stop sign detection
+    if sm.valid.get("frogpilotStopSign", False):
+      stop_sign = sm["frogpilotStopSign"]
+      self.stop_sign_detected = stop_sign.detected
+      self.stop_sign_distance = stop_sign.distance if stop_sign.detected else 0.0
+    else:
+      self.stop_sign_detected = False
+      self.stop_sign_distance = 0.0
+
     self.model_stopped = self.model_length < CRUISING_SPEED * PLANNER_TIME
     self.model_stopped |= self.frogpilot_vcruise.forcing_stop
+    # Trigger early stopping when stop sign detected within reasonable range
+    if self.stop_sign_detected and 10.0 < self.stop_sign_distance < 120.0:
+      self.model_stopped = True
 
     self.road_curvature, self.time_to_curve = calculate_road_curvature(sm["modelV2"], v_ego)
 
@@ -186,5 +200,8 @@ class FrogPilotPlanner:
 
     frogpilotPlan.weatherDaytime = self.frogpilot_weather.is_daytime
     frogpilotPlan.weatherId = self.frogpilot_weather.weather_id
+
+    frogpilotPlan.stopSignDetected = self.stop_sign_detected
+    frogpilotPlan.stopSignDistance = self.stop_sign_distance
 
     pm.send("frogpilotPlan", frogpilot_plan_send)

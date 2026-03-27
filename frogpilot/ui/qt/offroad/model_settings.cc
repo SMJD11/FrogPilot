@@ -57,6 +57,7 @@ FrogPilotModelPanel::FrogPilotModelPanel(FrogPilotSettingsWindow *parent) : Frog
     {"ManageBlacklistedModels", tr("Manage Model Blacklist"), tr("<b>Add or remove driving models from the \"Model Randomizer\" blacklist.</b>"), ""},
     {"ManageScores", tr("Manage Model Ratings"), tr("<b>View or reset saved model ratings</b> used by the \"Model Randomizer\"."), ""},
     {"SelectModel", tr("Select Driving Model"), tr("<b>Choose which driving model openpilot uses.</b>"), ""},
+    {"DownloadStopSignModel", tr("Download Stop Sign Model"), tr("<b>Manually download the YOLO26n stop sign model</b> for vision-based stop sign detection."), ""},
     {"UpdateTinygrad", tr("Update Model Manager"), tr("<b>Update the \"Model Manager\"</b> to support the latest models."), ""}
   };
 
@@ -296,6 +297,22 @@ FrogPilotModelPanel::FrogPilotModelPanel(FrogPilotSettingsWindow *parent) : Frog
       });
       modelToggle = selectModelButton;
 
+    } else if (param == "DownloadStopSignModel") {
+      downloadStopSignModelButton = new FrogPilotButtonsControl(title, desc, icon, {tr("DOWNLOAD")});
+      QObject::connect(downloadStopSignModelButton, &FrogPilotButtonsControl::buttonClicked, [this]() {
+        if (stopSignModelDownloading) {
+          params_memory.putBool("CancelModelDownload", true);
+          cancellingDownload = true;
+        } else {
+          params_memory.putBool("DownloadStopSignModel", true);
+          params_memory.put("StopSignModelDownloadProgress", "Downloading stop sign model...");
+          downloadStopSignModelButton->setText(0, tr("CANCEL"));
+          downloadStopSignModelButton->setValue(tr("Downloading..."));
+          stopSignModelDownloading = true;
+        }
+      });
+      modelToggle = downloadStopSignModelButton;
+
     } else if (param == "UpdateTinygrad") {
       updateTinygradButton = new FrogPilotButtonsControl(title, desc, icon, {tr("UPDATE")});
       QObject::connect(updateTinygradButton, &FrogPilotButtonsControl::buttonClicked, [this]() {
@@ -366,10 +383,12 @@ void FrogPilotModelPanel::showEvent(QShowEvent *event) {
 
   allModelsDownloading = params_memory.getBool("DownloadAllModels");
   modelDownloading = !params_memory.get("ModelDownloadProgress").empty();
+  stopSignModelDownloading = !params_memory.get("StopSignModelDownloadProgress").empty();
   tinygradUpdate = params.getBool("TinygradUpdateAvailable");
   updatingTinygrad = params_memory.getBool("UpdateTinygrad");
 
   modelDownloading &= !updatingTinygrad;
+  stopSignModelDownloading &= !updatingTinygrad;
 
   QStringList availableModels = QString::fromStdString(params.get("AvailableModels")).split(",");
   availableModels.sort();
@@ -423,6 +442,14 @@ void FrogPilotModelPanel::showEvent(QShowEvent *event) {
   downloadModelButton->setEnabledButtons(1, !allModelsDownloaded && !modelDownloading && !cancellingDownload && !updatingTinygrad && fs.frogpilot_scene.online && parked);
 
   downloadModelButton->setValue(fs.frogpilot_scene.online ? (parked ? "" : tr("Not parked")) : tr("Offline..."));
+
+  bool stopSignModelDownloaded = params.getBool("StopSignModelDownloaded");
+  downloadStopSignModelButton->setEnabledButtons(0, !stopSignModelDownloaded && !stopSignModelDownloading && !cancellingDownload && !updatingTinygrad && fs.frogpilot_scene.online && parked);
+  if (stopSignModelDownloaded) {
+    downloadStopSignModelButton->setValue(tr("Downloaded!"));
+  } else {
+    downloadStopSignModelButton->setValue(fs.frogpilot_scene.online ? (parked ? "" : tr("Not parked")) : tr("Offline..."));
+  }
 
   updateTinygradButton->setEnabled(!modelDownloading && !cancellingDownload && fs.frogpilot_scene.online && parked && tinygradUpdate);
   updateTinygradButton->setValue(tinygradUpdate ? tr("Update available!") : tr("Up to date!"));
@@ -494,6 +521,31 @@ void FrogPilotModelPanel::updateState(const UIState &s, const FrogPilotUIState &
     downloadModelButton->setValue(fs.frogpilot_scene.online ? (parked ? "" : tr("Not parked")) : tr("Offline..."));
   }
 
+  if (stopSignModelDownloading) {
+    QString progress = QString::fromStdString(params_memory.get("StopSignModelDownloadProgress"));
+    bool downloadFailed = progress.contains(QRegularExpression("cancelled|failed|missing|offline", QRegularExpression::CaseInsensitiveOption));
+    
+    downloadStopSignModelButton->setValue(progress);
+
+    if (progress == "Downloaded!" || downloadFailed) {
+      finalizingDownload = true;
+      QTimer::singleShot(2500, [progress, this]() {
+        stopSignModelDownloading = false;
+        cancellingDownload = false;
+        finalizingDownload = false;
+        params_memory.remove("StopSignModelDownloadProgress");
+        downloadStopSignModelButton->setEnabled(true);
+        if (progress == "Downloaded!") {
+          downloadStopSignModelButton->setValue(tr("Downloaded!"));
+        } else {
+          downloadStopSignModelButton->setValue("");
+        }
+      });
+    }
+  } else if (!params.getBool("StopSignModelDownloaded")) {
+    downloadStopSignModelButton->setValue(fs.frogpilot_scene.online ? (parked ? "" : tr("Not parked")) : tr("Offline..."));
+  }
+
   if (updatingTinygrad) {
     QString progress = QString::fromStdString(params_memory.get("ModelDownloadProgress"));
     bool downloadFailed = progress.contains(QRegularExpression("cancelled|exists|failed|missing|offline", QRegularExpression::CaseInsensitiveOption));
@@ -559,11 +611,14 @@ void FrogPilotModelPanel::updateState(const UIState &s, const FrogPilotUIState &
   downloadModelButton->setVisibleButton(0, !allModelsDownloading);
   downloadModelButton->setVisibleButton(1, !modelDownloading);
 
+  downloadStopSignModelButton->setText(0, stopSignModelDownloading ? tr("CANCEL") : tr("DOWNLOAD"));
+  downloadStopSignModelButton->setEnabledButtons(0, !params.getBool("StopSignModelDownloaded") && !stopSignModelDownloading && !cancellingDownload && !finalizingDownload && !updatingTinygrad && fs.frogpilot_scene.online && parked);
+
   updateTinygradButton->setEnabled(!modelDownloading && !cancellingDownload && !cancellingDownload && !finalizingDownload && fs.frogpilot_scene.online && parked && tinygradUpdate);
 
   started = s.scene.started;
 
-  parent->keepScreenOn = allModelsDownloading || modelDownloading || updatingTinygrad;
+  parent->keepScreenOn = allModelsDownloading || modelDownloading || stopSignModelDownloading || updatingTinygrad;
 }
 
 void FrogPilotModelPanel::updateModelLabels(FrogPilotListWidget *labelsList) {
