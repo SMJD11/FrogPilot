@@ -2,6 +2,20 @@
 import os
 from openpilot.system.hardware import TICI
 os.environ['DEV'] = 'QCOM' if TICI else 'LLVM'
+
+# If the selected model is V7 (not-too-shabby), prepend April12th's tinygrad to
+# sys.path BEFORE any tinygrad import. This is critical — it ensures the QCOM
+# device is initialized by April12th's runtime from process start, identical to
+# how things worked at f5dfdbb6a when April12th's tinygrad was the only tinygrad
+# in tinygrad_repo/. Without this, FrogPilot's QCOM runtime initializes first
+# and two conflicting QCOM runtimes collide, causing subtle model behavior issues.
+from openpilot.common.params import Params as _Params
+_model_param = (_Params().get("Model", encoding="utf-8") or "").removesuffix("_default")
+if _model_param == "not-too-shabby":
+  import sys as _sys, pathlib as _pathlib
+  _sys.path.insert(0, str(_pathlib.Path(__file__).parent / "tinygrad_v7"))
+del _model_param
+
 USBGPU = "USBGPU" in os.environ
 if USBGPU:
   os.environ['DEV'] = 'AMD'
@@ -30,6 +44,7 @@ from openpilot.frogpilot.tinygrad_modeld.fill_model_msg import fill_model_msg, f
 from openpilot.frogpilot.tinygrad_modeld.constants import ModelConstants, Plan
 from openpilot.frogpilot.tinygrad_modeld.models.commonmodel_pyx import DrivingModelFrame, CLContext
 from openpilot.frogpilot.tinygrad_modeld.runners.tinygrad_helpers import qcom_tensor_from_opencl_address
+from openpilot.frogpilot.tinygrad_modeld.runners.v7_runner import ModelStateV7
 
 from openpilot.frogpilot.common.frogpilot_variables import MODELS_PATH, get_frogpilot_toggles
 
@@ -243,12 +258,25 @@ class ModelState:
 
 
 def main(demo=False):
+  # FrogPilot launches tinygrad_modeld as a PythonProcess (forked child) which sets
+  # the process name to 'tinygrad_modeld'. Tinygrad's device.py:25 only allows GPU
+  # device access from 'MainProcess'. Set the name here so all device opens succeed.
+  import multiprocessing
+  multiprocessing.current_process().name = "MainProcess"
+
   # FrogPilot variables
   frogpilot_toggles = get_frogpilot_toggles()
 
   model_name = frogpilot_toggles.model
   model_version = frogpilot_toggles.model_version
-  use_curvature_from_plan = frogpilot_toggles.model_version != "v7"
+
+  # Hardcode V7 model versions — ModelVersions param may not be populated
+  # at boot (requires fetch_models which needs network), causing NTS to
+  # default to "v9" and use the wrong ModelState class
+  if model_name == "not-too-shabby":
+    model_version = "v7"
+
+  use_curvature_from_plan = model_version != "v7"
 
   cloudlog.warning("tinygrad_modeld init")
 
@@ -261,7 +289,10 @@ def main(demo=False):
   cloudlog.warning("setting up CL context")
   cl_context = CLContext()
   cloudlog.warning("CL context ready; loading model")
-  model = ModelState(cl_context, model_name)
+  if model_version == "v7":
+    model = ModelStateV7(cl_context, model_name, model_version)
+  else:
+    model = ModelState(cl_context, model_name)
   cloudlog.warning(f"models loaded in {time.monotonic() - st:.1f}s, tinygrad_modeld starting")
 
   # visionipc clients
