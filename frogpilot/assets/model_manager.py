@@ -57,7 +57,7 @@ class ModelManager:
   def check_models(self, boot_run, repo_url):
     downloaded_models = [
       model for model in MODELS_PATH.iterdir()
-      if (MODELS_PATH / f"{model}.thneed").is_file() or all((MODELS_PATH / f"{model}_{filename}").is_file() for filename, _ in TINYGRAD_FILES)
+      if (MODELS_PATH / f"{model}.thneed").is_file() or (MODELS_PATH / f"{model}.pkl").is_file() or all((MODELS_PATH / f"{model}_{filename}").is_file() for filename, _ in TINYGRAD_FILES)
     ]
     for model_file in downloaded_models:
       if not any(model in model_file.name for model in set(self.available_models)):
@@ -91,6 +91,19 @@ class ModelManager:
         local_size = self.model_sizes.get(model_file.name)
 
         if expected_size > 0 and local_size != expected_size:
+          print(f"Model {model} is outdated. Deleting {model_file}...")
+          delete_file(model_file)
+          need_to_update_models = True
+      elif self.is_v7_model(model):
+        model_file = MODELS_PATH / f"{model}.pkl"
+        if not model_file.is_file():
+          need_to_update_models = True
+          continue
+
+        expected_size = model_sizes.get(model_file.name)
+        local_size = self.model_sizes.get(model_file.name)
+
+        if expected_size is not None and expected_size > 0 and local_size != expected_size:
           print(f"Model {model} is outdated. Deleting {model_file}...")
           delete_file(model_file)
           need_to_update_models = True
@@ -171,6 +184,8 @@ class ModelManager:
 
       if self.is_tinygrad_model(model):
         already_downloaded = (MODELS_PATH / f"{model}.thneed").is_file()
+      elif self.is_v7_model(model):
+        already_downloaded = (MODELS_PATH / f"{model}.pkl").is_file()
       else:
         already_downloaded = all((MODELS_PATH / f"{model}_{filename}").is_file() for filename, _ in TINYGRAD_FILES)
 
@@ -235,6 +250,58 @@ class ModelManager:
         params_memory.put(DOWNLOAD_PROGRESS_PARAM, "Downloaded!")
         params_memory.remove(MODEL_DOWNLOAD_PARAM)
 
+        self.downloading_model = False
+      else:
+        handle_error(model_path, "Verification failed...", "GitLab verification failed", MODEL_DOWNLOAD_PARAM, DOWNLOAD_PROGRESS_PARAM)
+        self.downloading_model = False
+    elif self.is_v7_model(model_to_download):
+      model_path = MODELS_PATH / f"{model_to_download}.pkl"
+      
+      user_repo = repo_url.replace("FrogAi", "SMJD11")
+      model_url = f"{user_repo}/Models/{model_to_download}.pkl"
+      
+      print(f"Downloading model: {model_to_download} from {user_repo}")
+      download_file(CANCEL_DOWNLOAD_PARAM, model_path, DOWNLOAD_PROGRESS_PARAM, model_url, MODEL_DOWNLOAD_PARAM, self.session)
+
+      if params_memory.get_bool(CANCEL_DOWNLOAD_PARAM):
+        delete_file(model_path)
+        handle_error(None, "Download cancelled...", "Download cancelled...", MODEL_DOWNLOAD_PARAM, DOWNLOAD_PROGRESS_PARAM)
+        self.downloading_model = False
+        return
+
+      if verify_download(model_path, model_url, self.session):
+        print(f"Model {model_to_download} downloaded and verified successfully!")
+        self.update_model_size(model_path)
+        
+        nts_marker = MODELS_PATH / f"{model_to_download}.thneed"
+        if not nts_marker.is_file():
+          nts_marker.touch()
+
+        params_memory.put(DOWNLOAD_PROGRESS_PARAM, "Downloaded!")
+        params_memory.remove(MODEL_DOWNLOAD_PARAM)
+        self.downloading_model = False
+        return
+
+      print(f"Verification failed for model {model_to_download}. Retrying from GitLab...")
+      fallback_url = f"https://gitlab.com/SMJD11/FrogPilot-Resources/-/raw/Models/{model_to_download}.pkl"
+      download_file(CANCEL_DOWNLOAD_PARAM, model_path, DOWNLOAD_PROGRESS_PARAM, fallback_url, MODEL_DOWNLOAD_PARAM, self.session)
+
+      if params_memory.get_bool(CANCEL_DOWNLOAD_PARAM):
+        delete_file(model_path)
+        handle_error(None, "Download cancelled...", "Download cancelled...", MODEL_DOWNLOAD_PARAM, DOWNLOAD_PROGRESS_PARAM)
+        self.downloading_model = False
+        return
+
+      if verify_download(model_path, fallback_url, self.session):
+        print(f"Model {model_to_download} downloaded successfully from GitLab!")
+        self.update_model_size(model_path)
+        
+        nts_marker = MODELS_PATH / f"{model_to_download}.thneed"
+        if not nts_marker.is_file():
+          nts_marker.touch()
+
+        params_memory.put(DOWNLOAD_PROGRESS_PARAM, "Downloaded!")
+        params_memory.remove(MODEL_DOWNLOAD_PARAM)
         self.downloading_model = False
       else:
         handle_error(model_path, "Verification failed...", "GitLab verification failed", MODEL_DOWNLOAD_PARAM, DOWNLOAD_PROGRESS_PARAM)
@@ -376,10 +443,20 @@ class ModelManager:
   def is_tinygrad_model(self, model):
     return self.model_versions[self.available_models.index(model)] in {"v1", "v2", "v3", "v4", "v5", "v6"}
 
+  def is_v7_model(self, model):
+    if model not in self.available_models:
+      return False
+    return self.model_versions[self.available_models.index(model)] == "v7"
+
   def update_model_params(self, model_info):
     self.available_models = [model["id"] for model in model_info]
     self.available_model_names = [model["name"] for model in model_info]
     self.model_versions = [model["version"] for model in model_info]
+
+    if "not-too-shabby" not in self.available_models:
+      self.available_models.append("not-too-shabby")
+      self.available_model_names.append("Not Too Shabby")
+      self.model_versions.append("v7")
 
     params.put("AvailableModels", ",".join(self.available_models))
     params.put("AvailableModelNames", ",".join(self.available_model_names))
