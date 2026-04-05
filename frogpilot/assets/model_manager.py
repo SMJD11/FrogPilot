@@ -258,7 +258,7 @@ class ModelManager:
       model_path = MODELS_PATH / f"{model_to_download}.pkl"
       
       user_repo = repo_url.replace("FrogAi", "SMJD11")
-      model_url = f"{user_repo}/models/{model_to_download}.pkl"
+      model_url = f"{user_repo}/main/models/{model_to_download}.pkl"
       
       print(f"Downloading model: {model_to_download} from {user_repo}")
       download_file(CANCEL_DOWNLOAD_PARAM, model_path, DOWNLOAD_PROGRESS_PARAM, model_url, MODEL_DOWNLOAD_PARAM, self.session)
