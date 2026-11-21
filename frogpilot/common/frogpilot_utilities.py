@@ -317,6 +317,8 @@ def get_model_lat_smooth_seconds(model):
 
 @cache
 def get_model_version(model):
+  if model == "not-too-shabby":
+    return "v7"
   params = Params()
   models = (params.get("AvailableModels", encoding="utf-8") or "").split(",")
   model_versions = (params.get("ModelVersions", encoding="utf-8") or "").split(",")
@@ -447,6 +449,8 @@ def load_json_file(path):
 def model_files(model, version):
   if version in frogpilot_variables.THNEED_MODEL_VERSIONS:
     return [(f"{model}.thneed", "model")]
+  if version == "v7":
+    return [(f"{model}.pkl", "model")]
   if version == frogpilot_variables.COMBINED_MODEL_VERSION:
     return [(f"{model}_{filename}", description) for filename, description in frogpilot_variables.TINYGRAD_COMBINED_FILES]
   return [(f"{model}_{filename}", description) for filename, description in frogpilot_variables.TINYGRAD_FILES]

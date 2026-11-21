@@ -38,9 +38,10 @@ class ModelManager:
 
   def download_model(self, model, repo_url, model_sizes):
     thneed = self.is_thneed_model(model)
+    v7 = self.is_v7_model(model)
     files = frogpilot_utilities.model_files(model, self.model_version(model))
 
-    if thneed:
+    if thneed or v7:
       folder = "Models"
       file_sizes = [0]
       total_bytes = 0
@@ -59,10 +60,16 @@ class ModelManager:
     offset_bytes = 0
     for (filename, description), file_size in zip(files, file_sizes, strict=True):
       destination = frogpilot_paths.MODELS_PATH / filename
-      path = f"{folder}/{filename}"
+      if v7:
+        github_user_repo = frogpilot_download_utilities.GITHUB_URL.replace("FrogAi", "SMJD11")
+        gitlab_user_repo = frogpilot_download_utilities.GITLAB_URL.replace("FrogAi", "SMJD11")
+        urls = (f"{github_user_repo}/main/models/{filename}", f"{gitlab_user_repo}/models/{filename}")
+      else:
+        path = f"{folder}/{filename}"
+        urls = (f"{repo_url}/{path}", f"{frogpilot_download_utilities.GITLAB_URL}/{path}")
 
       print(f"Downloading {description} for model: {model}")
-      for url in (f"{repo_url}/{path}", f"{frogpilot_download_utilities.GITLAB_URL}/{path}"):
+      for url in urls:
         self.download_state.download_file(destination, self.session, url, offset_bytes, total_bytes)
 
         if self.download_state.cancelled:
@@ -81,6 +88,11 @@ class ModelManager:
       print(f"{description.capitalize()} for {model} downloaded and verified successfully!")
       self.update_model_size(destination)
 
+      if v7:
+        nts_marker = frogpilot_paths.MODELS_PATH / f"{model}.thneed"
+        if not nts_marker.is_file():
+          nts_marker.touch()
+
       offset_bytes += file_size
 
     os.sync()
@@ -97,7 +109,7 @@ class ModelManager:
       if self.is_downloaded(model):
         continue
 
-      if not model_sizes and not self.is_thneed_model(model):
+      if not model_sizes and not self.is_thneed_model(model) and not self.is_v7_model(model):
         model_sizes = self.fetch_all_model_sizes(repo_url) or self.fetch_all_model_sizes(frogpilot_download_utilities.GITLAB_URL)
 
       print(f"Model {model} is not downloaded. Preparing to download...")
@@ -174,6 +186,9 @@ class ModelManager:
   def is_thneed_model(self, model):
     return self.model_version(model) in frogpilot_variables.THNEED_MODEL_VERSIONS
 
+  def is_v7_model(self, model):
+    return self.model_version(model) == "v7"
+
   def link_default_models(self):
     default_models = [
       (frogpilot_paths.CLASSIC_MODEL_PATH / "supercombo.thneed", frogpilot_paths.MODELS_PATH / "wd-40.thneed"),
@@ -193,10 +208,18 @@ class ModelManager:
       print(f"Linked {target} to {source}")
       self.update_model_size(target)
 
+    # Ensure precompiled Qt UI sees an already-downloaded NTS .pkl model
+    if (frogpilot_paths.MODELS_PATH / "not-too-shabby.pkl").is_file():
+      nts_marker = frogpilot_paths.MODELS_PATH / "not-too-shabby.thneed"
+      if not nts_marker.is_file():
+        nts_marker.touch()
+
   def missing_models(self):
     return [model for model in self.available_models if not self.is_downloaded(model)]
 
   def model_version(self, model):
+    if model == "not-too-shabby":
+      return "v7"
     if model in self.available_models:
       index = self.available_models.index(model)
       if index < len(self.model_versions):
@@ -246,12 +269,13 @@ class ModelManager:
     tinygrad_files = [*frogpilot_variables.TINYGRAD_COMBINED_FILES, *frogpilot_variables.TINYGRAD_FILES]
     downloaded_models = [
       model_file for model_file in frogpilot_paths.MODELS_PATH.iterdir()
-      if model_file.suffix == ".thneed" or any(model_file.name.endswith(f"_{filename}") for filename, _ in tinygrad_files)
+      if model_file.suffix in (".thneed", ".pkl") or any(model_file.name.endswith(f"_{filename}") for filename, _ in tinygrad_files)
     ]
 
     available_files = set()
     for model in [*self.available_models, frogpilot_variables.DEFAULT_MODEL]:
       available_files.add(f"{model}.thneed")
+      available_files.add(f"{model}.pkl")
       available_files.update(f"{model}_{filename}" for filename, _ in tinygrad_files)
 
     for model_file in downloaded_models:
@@ -274,6 +298,12 @@ class ModelManager:
 
     desired_curvature_head_models = [model["id"] for model in model_info if model.get("desired_curvature_head")]
     lat_smooth_seconds = [str(float(model.get("lat_smooth_seconds", frogpilot_variables.LAT_SMOOTH_SECONDS))) for model in model_info]
+
+    if "not-too-shabby" not in self.available_models:
+      self.available_models.append("not-too-shabby")
+      self.available_model_names.append("Not Too Shabby")
+      self.model_versions.append("v7")
+      lat_smooth_seconds.append(str(float(frogpilot_variables.LAT_SMOOTH_SECONDS)))
 
     model_params = {
       "AvailableModels": ",".join(self.available_models),

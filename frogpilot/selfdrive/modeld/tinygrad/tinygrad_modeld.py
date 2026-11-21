@@ -2,6 +2,17 @@
 import os
 from openpilot.system.hardware import TICI
 os.environ['DEV'] = 'QCOM' if TICI else 'LLVM'
+
+# If the selected model is V7 (not-too-shabby), prepend April12th's tinygrad to
+# sys.path BEFORE any tinygrad import so the QCOM device is initialized by
+# April12th's runtime from process start without conflicting QCOM runtimes.
+from openpilot.common.params import Params as _Params
+_model_param = (_Params().get("Model", encoding="utf-8") or "").removesuffix("_default")
+if _model_param == "not-too-shabby":
+  import sys as _sys, pathlib as _pathlib
+  _sys.path.insert(0, str(_pathlib.Path(__file__).parent / "tinygrad_v7"))
+del _model_param
+
 from tinygrad.tensor import Tensor
 from tinygrad.dtype import dtypes
 import time
@@ -25,6 +36,7 @@ from openpilot.frogpilot.selfdrive.modeld.tinygrad.fill_model_msg import fill_mo
 from openpilot.frogpilot.selfdrive.modeld.tinygrad.constants import ModelConstants, Plan
 from openpilot.frogpilot.selfdrive.modeld.tinygrad.models.commonmodel_pyx import DrivingModelFrame, CLContext
 from openpilot.frogpilot.selfdrive.modeld.tinygrad.runners.tinygrad_helpers import qcom_tensor_from_opencl_address
+from openpilot.frogpilot.selfdrive.modeld.tinygrad.runners.v7_runner import ModelStateV7
 
 from openpilot.frogpilot.common import frogpilot_paths, frogpilot_utilities, frogpilot_variables
 
@@ -335,10 +347,18 @@ class CombinedModelState(ModelState):
 
 
 def main(demo=False):
+  # FrogPilot launches tinygrad_modeld as a PythonProcess (forked child) which sets
+  # the process name to 'tinygrad_modeld'. April12th tinygrad's device.py:25 only
+  # allows GPU device access from 'MainProcess'.
+  import multiprocessing
+  multiprocessing.current_process().name = "MainProcess"
+
   # FrogPilot variables
   frogpilot_toggles = frogpilot_variables.get_frogpilot_toggles()
 
   model_name = frogpilot_toggles.model
+  model_version = frogpilot_utilities.get_model_version(model_name)
+  v7_model = model_version == "v7"
   combined_model = frogpilot_utilities.is_combined_model(model_name)
   lat_smooth_seconds = frogpilot_utilities.get_model_lat_smooth_seconds(model_name)
   use_curvature_from_plan = not frogpilot_utilities.use_desired_curvature_action(model_name)
@@ -360,7 +380,9 @@ def main(demo=False):
   cloudlog.warning("setting up CL context")
   cl_context = CLContext()
   cloudlog.warning("CL context ready; loading model")
-  if combined_model:
+  if v7_model:
+    model = ModelStateV7(cl_context, model_name, model_version)
+  elif combined_model:
     model = CombinedModelState(cl_context, model_name)
   else:
     model = ModelState(cl_context, model_name)
