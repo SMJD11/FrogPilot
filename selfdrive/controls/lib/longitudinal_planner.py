@@ -107,10 +107,8 @@ class LongitudinalPlanner:
 
     if sm['frogpilotPlan'].forcingStop:
       self.mpc.mode = 'blended'
-    elif classic_longitudinal or frogpilot_toggles.old_long_api:
-      self.mpc.mode = mode
     else:
-      self.mpc.mode = 'acc'
+      self.mpc.mode = mode
 
     if len(sm['carControl'].orientationNED) == 3:
       accel_coast = get_coast_accel(sm['carControl'].orientationNED[1])
